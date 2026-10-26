@@ -1,0 +1,21 @@
+# Entorno
+.env
+*.env
+!example.env
+
+# Go
+*.exe
+*.test
+*.out
+tmp/
+
+# Nuxt / Node
+node_modules/
+.nuxt/
+.output/
+dist/
+
+# IDE y sistema
+.vscode/
+.idea/
+.DS_Store
