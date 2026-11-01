@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"minitask/models"
@@ -9,6 +10,7 @@ import (
 
 type TaskRepository interface {
 	Create(ctx context.Context, task *models.Task) error
+	List(ctx context.Context, status, search string) ([]models.Task, error)
 }
 
 type TaskService struct {
@@ -78,4 +80,19 @@ func (s *TaskService) CreateTask(ctx context.Context, input models.CreateTaskInp
 	}
 
 	return &task, nil
+}
+
+func (s *TaskService) ListTasks(ctx context.Context, status, search string) ([]models.Task, error) {
+	// 1. Normalizar búsqueda
+	search = strings.TrimSpace(search)
+
+	// 2. Validar estado si fue proporcionado
+	if status != "" {
+		if err := validateEnum(status, models.ValidStatuses, "El estado no es válido."); err != nil {
+			return nil, err
+		}
+	}
+
+	// 3. Consultar repositorio
+	return s.repo.List(ctx, status, search)
 }
