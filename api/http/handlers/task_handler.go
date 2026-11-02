@@ -13,6 +13,7 @@ import (
 
 type TaskService interface {
 	CreateTask(ctx context.Context, input models.CreateTaskInput) (*models.Task, error)
+	ListTasks(ctx context.Context, status, search string) ([]models.Task, error)
 }
 
 type TaskHandler struct {
@@ -28,33 +29,59 @@ func NewTaskHandler(service TaskService) *TaskHandler {
 func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var input models.CreateTaskInput
 
-	// 1. Decodificar el JSON
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(w, "El cuerpo de la solicitud no es válido.", http.StatusBadRequest)
+		http.Error(
+			w,
+			"El cuerpo de la solicitud no es válido.",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
-	// 2. Ejecutar el servicio
 	task, err := h.service.CreateTask(r.Context(), input)
 	if err != nil {
-		var validationErr *services.ValidationError
-
-		if errors.As(err, &validationErr) {
-			http.Error(w, validationErr.Message, http.StatusBadRequest)
-			return
-		}
-
-		log.Printf("error creando tarea: %v", err)
-		http.Error(w, "Error interno del servidor.", http.StatusInternalServerError)
+		h.handleError(w, err)
 		return
 	}
 
-	// 3. Configurar respuesta HTTP
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	// 4. Escribir respuesta JSON
 	if err := json.NewEncoder(w).Encode(task); err != nil {
 		log.Printf("error escribiendo respuesta: %v", err)
 	}
+}
+
+func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
+	status := r.URL.Query().Get("status")
+	search := r.URL.Query().Get("search")
+
+	tasks, err := h.service.ListTasks(r.Context(), status, search)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(tasks); err != nil {
+		log.Printf("error escribiendo respuesta: %v", err)
+	}
+}
+
+func (h *TaskHandler) handleError(w http.ResponseWriter, err error) {
+	var validationErr *services.ValidationError
+
+	if errors.As(err, &validationErr) {
+		http.Error(w, validationErr.Message, http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("error interno: %v", err)
+	http.Error(
+		w,
+		"Error interno del servidor.",
+		http.StatusInternalServerError,
+	)
 }
