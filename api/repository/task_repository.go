@@ -107,7 +107,7 @@ func (r *TaskRepository) List(
 	for rows.Next() {
 		var task models.Task
 
-		err := rows.Scan(
+		if err := rows.Scan(
 			&task.ID,
 			&task.Title,
 			&task.Description,
@@ -115,8 +115,7 @@ func (r *TaskRepository) List(
 			&task.Priority,
 			&task.CreatedAt,
 			&task.UpdatedAt,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, err
 		}
 
