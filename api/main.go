@@ -28,6 +28,7 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/tasks", handler.Create)
 	mux.HandleFunc("GET /api/v1/tasks", handler.List)
+	mux.HandleFunc("GET /api/v1/tasks/{id}", handler.Get)
 
 	log.Printf("Servidor iniciado en http://localhost:%s", cfg.Port)
 

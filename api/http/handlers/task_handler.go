@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"minitask/models"
 	"minitask/services"
@@ -14,6 +15,7 @@ import (
 type TaskService interface {
 	CreateTask(ctx context.Context, input models.CreateTaskInput) (*models.Task, error)
 	ListTasks(ctx context.Context, status, search string) ([]models.Task, error)
+	GetTask(ctx context.Context, id uint64) (*models.Task, error)
 }
 
 type TaskHandler struct {
@@ -30,11 +32,9 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var input models.CreateTaskInput
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		http.Error(
-			w,
-			"El cuerpo de la solicitud no es válido.",
-			http.StatusBadRequest,
-		)
+		h.handleError(w, &services.ValidationError{
+			Message: "El cuerpo de la solicitud no es válido.",
+		})
 		return
 	}
 
@@ -70,11 +70,41 @@ func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		h.handleError(w, &services.ValidationError{
+			Message: "El identificador no es válido.",
+		})
+		return
+	}
+
+	task, err := h.service.GetTask(r.Context(), id)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(task); err != nil {
+		log.Printf("error escribiendo respuesta: %v", err)
+	}
+}
+
 func (h *TaskHandler) handleError(w http.ResponseWriter, err error) {
 	var validationErr *services.ValidationError
 
 	if errors.As(err, &validationErr) {
 		http.Error(w, validationErr.Message, http.StatusBadRequest)
+		return
+	}
+
+	if errors.Is(err, models.ErrTaskNotFound) {
+		http.Error(w, "La tarea no existe.", http.StatusNotFound)
 		return
 	}
 

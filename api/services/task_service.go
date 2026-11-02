@@ -11,6 +11,7 @@ import (
 type TaskRepository interface {
 	Create(ctx context.Context, task *models.Task) error
 	List(ctx context.Context, status, search string) ([]models.Task, error)
+	GetByID(ctx context.Context, id uint64) (*models.Task, error)
 }
 
 type TaskService struct {
@@ -18,19 +19,19 @@ type TaskService struct {
 }
 
 func NewTaskService(repo TaskRepository) *TaskService {
-	return &TaskService{
-		repo: repo,
-	}
+	return &TaskService{repo: repo}
 }
 
-func (s *TaskService) CreateTask(ctx context.Context, input models.CreateTaskInput) (*models.Task, error) {
-	// 1. Validar título
+func (s *TaskService) CreateTask(
+	ctx context.Context,
+	input models.CreateTaskInput,
+) (*models.Task, error) {
+
 	title, err := validateTitle(input.Title)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Obtener y validar descripción
 	description := ""
 	if input.Description != nil {
 		description = *input.Description
@@ -41,30 +42,34 @@ func (s *TaskService) CreateTask(ctx context.Context, input models.CreateTaskInp
 		return nil, err
 	}
 
-	// 3. Obtener y validar estado
 	status := models.StatusPending
 	if input.Status != nil {
 		status = *input.Status
 	}
 
-	if err := validateEnum(status, models.ValidStatuses, "El estado no es válido."); err != nil {
+	if err := validateEnum(
+		status,
+		models.ValidStatuses,
+		"El estado no es válido.",
+	); err != nil {
 		return nil, err
 	}
 
-	// 4. Obtener y validar prioridad
 	priority := models.PriorityMedium
 	if input.Priority != nil {
 		priority = *input.Priority
 	}
 
-	if err := validateEnum(priority, models.ValidPriorities, "La prioridad no es válida."); err != nil {
+	if err := validateEnum(
+		priority,
+		models.ValidPriorities,
+		"La prioridad no es válida.",
+	); err != nil {
 		return nil, err
 	}
 
-	// 5. Establecer fechas
-	now := time.Now().UTC()
+	now := time.Now().UTC().Truncate(time.Millisecond)
 
-	// 6. Construir tarea
 	task := models.Task{
 		Title:       title,
 		Description: description,
@@ -74,7 +79,6 @@ func (s *TaskService) CreateTask(ctx context.Context, input models.CreateTaskInp
 		UpdatedAt:   now,
 	}
 
-	// 7. Guardar mediante el repositorio
 	if err := s.repo.Create(ctx, &task); err != nil {
 		return nil, err
 	}
@@ -82,17 +86,30 @@ func (s *TaskService) CreateTask(ctx context.Context, input models.CreateTaskInp
 	return &task, nil
 }
 
-func (s *TaskService) ListTasks(ctx context.Context, status, search string) ([]models.Task, error) {
-	// 1. Normalizar búsqueda
+func (s *TaskService) ListTasks(
+	ctx context.Context,
+	status string,
+	search string,
+) ([]models.Task, error) {
+
 	search = strings.TrimSpace(search)
 
-	// 2. Validar estado si fue proporcionado
 	if status != "" {
-		if err := validateEnum(status, models.ValidStatuses, "El estado no es válido."); err != nil {
+		if err := validateEnum(
+			status,
+			models.ValidStatuses,
+			"El estado no es válido.",
+		); err != nil {
 			return nil, err
 		}
 	}
 
-	// 3. Consultar repositorio
 	return s.repo.List(ctx, status, search)
+}
+
+func (s *TaskService) GetTask(
+	ctx context.Context,
+	id uint64,
+) (*models.Task, error) {
+	return s.repo.GetByID(ctx, id)
 }

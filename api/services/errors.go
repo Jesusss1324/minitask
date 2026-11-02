@@ -4,6 +4,6 @@ type ValidationError struct {
 	Message string
 }
 
-func (c *ValidationError) Error() string {
-	return c.Message
+func (e *ValidationError) Error() string {
+	return e.Message
 }
