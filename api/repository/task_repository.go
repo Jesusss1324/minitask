@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strings"
 
 	"minitask/models"
@@ -127,4 +128,45 @@ func (r *TaskRepository) List(
 	}
 
 	return tasks, nil
+}
+
+func (r *TaskRepository) GetByID(
+	ctx context.Context,
+	id uint64,
+) (*models.Task, error) {
+
+	query := `
+		SELECT
+			id,
+			title,
+			description,
+			status,
+			priority,
+			created_at,
+			updated_at
+		FROM tasks
+		WHERE id = ?
+	`
+
+	var task models.Task
+
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
+		&task.ID,
+		&task.Title,
+		&task.Description,
+		&task.Status,
+		&task.Priority,
+		&task.CreatedAt,
+		&task.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, models.ErrTaskNotFound
+		}
+
+		return nil, err
+	}
+
+	return &task, nil
 }
