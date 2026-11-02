@@ -30,7 +30,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/tasks", handler.Create)
 	mux.HandleFunc("GET /api/v1/tasks", handler.List)
 	mux.HandleFunc("GET /api/v1/tasks/{id}", handler.Get)
-
+	mux.HandleFunc("PUT /api/v1/tasks/{id}", handler.Update)
 	corsHandler := middleware.CORS(cfg.CORSAllowedOrigin)(mux)
 
 	log.Printf("Servidor iniciado en http://localhost:%s", cfg.Port)

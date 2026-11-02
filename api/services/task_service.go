@@ -12,6 +12,7 @@ type TaskRepository interface {
 	Create(ctx context.Context, task *models.Task) error
 	List(ctx context.Context, status, search string) ([]models.Task, error)
 	GetByID(ctx context.Context, id uint64) (*models.Task, error)
+	Update(ctx context.Context, task *models.Task) error
 }
 
 type TaskService struct {
@@ -112,4 +113,67 @@ func (s *TaskService) GetTask(
 	id uint64,
 ) (*models.Task, error) {
 	return s.repo.GetByID(ctx, id)
+}
+
+func (s *TaskService) UpdateTask(
+	ctx context.Context,
+	id uint64,
+	input models.UpdateTaskInput,
+) (*models.Task, error) {
+
+	// 1. Validar el título.
+	title, err := validateTitle(input.Title)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. La descripción es obligatoria.
+	if input.Description == nil {
+		return nil, &ValidationError{
+			Message: "La descripción es obligatoria.",
+		}
+	}
+
+	description, err := validateDescription(*input.Description)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Validar el estado.
+	if err := validateEnum(
+		input.Status,
+		models.ValidStatuses,
+		"El estado no es válido.",
+	); err != nil {
+		return nil, err
+	}
+
+	// 4. Validar la prioridad.
+	if err := validateEnum(
+		input.Priority,
+		models.ValidPriorities,
+		"La prioridad no es válida.",
+	); err != nil {
+		return nil, err
+	}
+
+	// 5. Buscar la tarea existente.
+	task, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// 6. Actualizar los campos sin modificar ID ni CreatedAt.
+	task.Title = title
+	task.Description = description
+	task.Status = input.Status
+	task.Priority = input.Priority
+	task.UpdatedAt = time.Now().UTC().Truncate(time.Millisecond)
+
+	// 7. Persistir los cambios.
+	if err := s.repo.Update(ctx, task); err != nil {
+		return nil, err
+	}
+
+	return task, nil
 }

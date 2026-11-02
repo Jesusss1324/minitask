@@ -16,6 +16,7 @@ type TaskService interface {
 	CreateTask(ctx context.Context, input models.CreateTaskInput) (*models.Task, error)
 	ListTasks(ctx context.Context, status, search string) ([]models.Task, error)
 	GetTask(ctx context.Context, id uint64) (*models.Task, error)
+	UpdateTask(ctx context.Context, id uint64, input models.UpdateTaskInput) (*models.Task, error)
 }
 
 type TaskHandler struct {
@@ -87,6 +88,44 @@ func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(task); err != nil {
+		log.Printf("error escribiendo respuesta: %v", err)
+	}
+}
+
+func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
+	// 1. Obtener y validar el ID de la URL.
+	idStr := r.PathValue("id")
+
+	id, err := strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		h.handleError(w, &services.ValidationError{
+			Message: "El identificador no es válido.",
+		})
+		return
+	}
+
+	// 2. Decodificar el cuerpo de la solicitud.
+	var input models.UpdateTaskInput
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		h.handleError(w, &services.ValidationError{
+			Message: "El cuerpo de la solicitud no es válido.",
+		})
+		return
+	}
+
+	// 3. Ejecutar la actualización mediante el servicio.
+	task, err := h.service.UpdateTask(r.Context(), id, input)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	// 4. Responder con la tarea actualizada.
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 

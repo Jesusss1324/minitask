@@ -170,3 +170,24 @@ func (r *TaskRepository) GetByID(
 
 	return &task, nil
 }
+
+func (r *TaskRepository) Update(ctx context.Context, task *models.Task) error {
+	query := `
+		UPDATE tasks
+		SET title = ?, description = ?, status = ?, priority = ?, updated_at = ?
+		WHERE id = ?
+	`
+
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		task.Title,
+		task.Description,
+		task.Status,
+		task.Priority,
+		task.UpdatedAt,
+		task.ID,
+	)
+
+	return err
+}
