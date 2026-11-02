@@ -6,6 +6,7 @@ import (
 
 	"minitask/config"
 	"minitask/http/handlers"
+	"minitask/http/middleware"
 	"minitask/repository"
 	"minitask/services"
 	"minitask/storage"
@@ -30,7 +31,9 @@ func main() {
 	mux.HandleFunc("GET /api/v1/tasks", handler.List)
 	mux.HandleFunc("GET /api/v1/tasks/{id}", handler.Get)
 
+	corsHandler := middleware.CORS(cfg.CORSAllowedOrigin)(mux)
+
 	log.Printf("Servidor iniciado en http://localhost:%s", cfg.Port)
 
-	log.Fatal(http.ListenAndServe(":"+cfg.Port, mux))
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, corsHandler))
 }
