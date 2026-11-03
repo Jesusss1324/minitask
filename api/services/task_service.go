@@ -13,6 +13,7 @@ type TaskRepository interface {
 	List(ctx context.Context, status, search string) ([]models.Task, error)
 	GetByID(ctx context.Context, id uint64) (*models.Task, error)
 	Update(ctx context.Context, task *models.Task) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 type TaskService struct {
@@ -27,7 +28,6 @@ func (s *TaskService) CreateTask(
 	ctx context.Context,
 	input models.CreateTaskInput,
 ) (*models.Task, error) {
-
 	title, err := validateTitle(input.Title)
 	if err != nil {
 		return nil, err
@@ -48,11 +48,7 @@ func (s *TaskService) CreateTask(
 		status = *input.Status
 	}
 
-	if err := validateEnum(
-		status,
-		models.ValidStatuses,
-		"El estado no es válido.",
-	); err != nil {
+	if err := validateEnum(status, models.ValidStatuses, "El estado no es válido."); err != nil {
 		return nil, err
 	}
 
@@ -61,11 +57,7 @@ func (s *TaskService) CreateTask(
 		priority = *input.Priority
 	}
 
-	if err := validateEnum(
-		priority,
-		models.ValidPriorities,
-		"La prioridad no es válida.",
-	); err != nil {
+	if err := validateEnum(priority, models.ValidPriorities, "La prioridad no es válida."); err != nil {
 		return nil, err
 	}
 
@@ -92,15 +84,10 @@ func (s *TaskService) ListTasks(
 	status string,
 	search string,
 ) ([]models.Task, error) {
-
 	search = strings.TrimSpace(search)
 
 	if status != "" {
-		if err := validateEnum(
-			status,
-			models.ValidStatuses,
-			"El estado no es válido.",
-		); err != nil {
+		if err := validateEnum(status, models.ValidStatuses, "El estado no es válido."); err != nil {
 			return nil, err
 		}
 	}
@@ -120,14 +107,11 @@ func (s *TaskService) UpdateTask(
 	id uint64,
 	input models.UpdateTaskInput,
 ) (*models.Task, error) {
-
-	// 1. Validar el título.
 	title, err := validateTitle(input.Title)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. La descripción es obligatoria.
 	if input.Description == nil {
 		return nil, &ValidationError{
 			Message: "La descripción es obligatoria.",
@@ -139,41 +123,35 @@ func (s *TaskService) UpdateTask(
 		return nil, err
 	}
 
-	// 3. Validar el estado.
-	if err := validateEnum(
-		input.Status,
-		models.ValidStatuses,
-		"El estado no es válido.",
-	); err != nil {
+	if err := validateEnum(input.Status, models.ValidStatuses, "El estado no es válido."); err != nil {
 		return nil, err
 	}
 
-	// 4. Validar la prioridad.
-	if err := validateEnum(
-		input.Priority,
-		models.ValidPriorities,
-		"La prioridad no es válida.",
-	); err != nil {
+	if err := validateEnum(input.Priority, models.ValidPriorities, "La prioridad no es válida."); err != nil {
 		return nil, err
 	}
 
-	// 5. Buscar la tarea existente.
 	task, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	// 6. Actualizar los campos sin modificar ID ni CreatedAt.
 	task.Title = title
 	task.Description = description
 	task.Status = input.Status
 	task.Priority = input.Priority
 	task.UpdatedAt = time.Now().UTC().Truncate(time.Millisecond)
 
-	// 7. Persistir los cambios.
 	if err := s.repo.Update(ctx, task); err != nil {
 		return nil, err
 	}
 
 	return task, nil
+}
+
+func (s *TaskService) DeleteTask(
+	ctx context.Context,
+	id uint64,
+) error {
+	return s.repo.Delete(ctx, id)
 }

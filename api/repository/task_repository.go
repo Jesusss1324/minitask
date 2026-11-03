@@ -191,3 +191,23 @@ func (r *TaskRepository) Update(ctx context.Context, task *models.Task) error {
 
 	return err
 }
+
+func (r *TaskRepository) Delete(ctx context.Context, id uint64) error {
+	query := `DELETE FROM tasks WHERE id = ?`
+
+	result, err := r.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return models.ErrTaskNotFound
+	}
+
+	return nil
+}
