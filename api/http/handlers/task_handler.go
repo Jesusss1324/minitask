@@ -12,6 +12,15 @@ import (
 	"minitask/services"
 )
 
+type ErrorBody struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type ErrorResponse struct {
+	Error ErrorBody `json:"error"`
+}
+
 type TaskService interface {
 	CreateTask(ctx context.Context, input models.CreateTaskInput) (*models.Task, error)
 	ListTasks(ctx context.Context, status, search string) ([]models.Task, error)
@@ -26,9 +35,7 @@ type TaskHandler struct {
 }
 
 func NewTaskHandler(service TaskService) *TaskHandler {
-	return &TaskHandler{
-		service: service,
-	}
+	return &TaskHandler{service: service}
 }
 
 func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -47,12 +54,7 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	if err := json.NewEncoder(w).Encode(task); err != nil {
-		log.Printf("error escribiendo respuesta: %v", err)
-	}
+	writeJSON(w, http.StatusCreated, task)
 }
 
 func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -65,12 +67,7 @@ func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(tasks); err != nil {
-		log.Printf("error escribiendo respuesta: %v", err)
-	}
+	writeJSON(w, http.StatusOK, tasks)
 }
 
 func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -90,12 +87,7 @@ func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(task); err != nil {
-		log.Printf("error escribiendo respuesta: %v", err)
-	}
+	writeJSON(w, http.StatusOK, task)
 }
 
 func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -124,16 +116,10 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(task); err != nil {
-		log.Printf("error escribiendo respuesta: %v", err)
-	}
+	writeJSON(w, http.StatusOK, task)
 }
 
 func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	// 1. Obtener y validar el ID de la URL.
 	idStr := r.PathValue("id")
 
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -144,35 +130,12 @@ func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Solicitar la eliminación al servicio.
 	if err := h.service.DeleteTask(r.Context(), id); err != nil {
 		h.handleError(w, err)
 		return
 	}
 
-	// 3. Responder sin cuerpo.
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h *TaskHandler) handleError(w http.ResponseWriter, err error) {
-	var validationErr *services.ValidationError
-
-	if errors.As(err, &validationErr) {
-		http.Error(w, validationErr.Message, http.StatusBadRequest)
-		return
-	}
-
-	if errors.Is(err, models.ErrTaskNotFound) {
-		http.Error(w, "La tarea no existe.", http.StatusNotFound)
-		return
-	}
-
-	log.Printf("error interno: %v", err)
-	http.Error(
-		w,
-		"Error interno del servidor.",
-		http.StatusInternalServerError,
-	)
 }
 
 func (h *TaskHandler) Summary(w http.ResponseWriter, r *http.Request) {
@@ -182,10 +145,67 @@ func (h *TaskHandler) Summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	writeJSON(w, http.StatusOK, summary)
+}
 
-	if err := json.NewEncoder(w).Encode(summary); err != nil {
-		log.Printf("error escribiendo respuesta: %v", err)
+func (h *TaskHandler) handleError(w http.ResponseWriter, err error) {
+	var validationErr *services.ValidationError
+
+	if errors.As(err, &validationErr) {
+		writeError(
+			w,
+			http.StatusBadRequest,
+			"validation_error",
+			validationErr.Message,
+		)
+		return
+	}
+
+	if errors.Is(err, models.ErrTaskNotFound) {
+		writeError(
+			w,
+			http.StatusNotFound,
+			"not_found",
+			"La tarea no existe.",
+		)
+		return
+	}
+
+	log.Printf("error interno: %v", err)
+
+	writeError(
+		w,
+		http.StatusInternalServerError,
+		"internal_error",
+		"Error interno del servidor.",
+	)
+}
+
+func writeError(
+	w http.ResponseWriter,
+	status int,
+	code string,
+	message string,
+) {
+	response := ErrorResponse{
+		Error: ErrorBody{
+			Code:    code,
+			Message: message,
+		},
+	}
+
+	writeJSON(w, status, response)
+}
+
+func writeJSON(
+	w http.ResponseWriter,
+	status int,
+	data any,
+) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("error escribiendo respuesta JSON: %v", err)
 	}
 }
