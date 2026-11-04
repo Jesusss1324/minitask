@@ -18,6 +18,7 @@ type TaskService interface {
 	GetTask(ctx context.Context, id uint64) (*models.Task, error)
 	UpdateTask(ctx context.Context, id uint64, input models.UpdateTaskInput) (*models.Task, error)
 	DeleteTask(ctx context.Context, id uint64) error
+	GetSummary(ctx context.Context) (models.TaskSummary, error)
 }
 
 type TaskHandler struct {
@@ -172,4 +173,19 @@ func (h *TaskHandler) handleError(w http.ResponseWriter, err error) {
 		"Error interno del servidor.",
 		http.StatusInternalServerError,
 	)
+}
+
+func (h *TaskHandler) Summary(w http.ResponseWriter, r *http.Request) {
+	summary, err := h.service.GetSummary(r.Context())
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(summary); err != nil {
+		log.Printf("error escribiendo respuesta: %v", err)
+	}
 }

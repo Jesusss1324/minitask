@@ -211,3 +211,49 @@ func (r *TaskRepository) Delete(ctx context.Context, id uint64) error {
 
 	return nil
 }
+
+func (r *TaskRepository) Summary(ctx context.Context) (models.TaskSummary, error) {
+	query := `
+		SELECT status, COUNT(*)
+		FROM tasks
+		GROUP BY status
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return models.TaskSummary{}, err
+	}
+	defer rows.Close()
+
+	var summary models.TaskSummary
+
+	for rows.Next() {
+		var status string
+		var count int
+
+		if err := rows.Scan(&status, &count); err != nil {
+			return models.TaskSummary{}, err
+		}
+
+		switch status {
+		case models.StatusPending:
+			summary.Pending = count
+
+		case models.StatusInProgress:
+			summary.InProgress = count
+
+		case models.StatusCompleted:
+			summary.Completed = count
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return models.TaskSummary{}, err
+	}
+
+	summary.Total = summary.Pending +
+		summary.InProgress +
+		summary.Completed
+
+	return summary, nil
+}

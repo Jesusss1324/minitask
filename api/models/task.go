@@ -24,6 +24,13 @@ type Task struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type TaskSummary struct {
+	Total      int `json:"total"`
+	Pending    int `json:"pending"`
+	InProgress int `json:"in_progress"`
+	Completed  int `json:"completed"`
+}
+
 var ValidStatuses = []string{StatusPending, StatusInProgress, StatusCompleted}
 
 var ValidPriorities = []string{PriorityLow, PriorityMedium, PriorityHigh}

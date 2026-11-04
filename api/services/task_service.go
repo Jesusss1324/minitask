@@ -14,6 +14,7 @@ type TaskRepository interface {
 	GetByID(ctx context.Context, id uint64) (*models.Task, error)
 	Update(ctx context.Context, task *models.Task) error
 	Delete(ctx context.Context, id uint64) error
+	Summary(ctx context.Context) (models.TaskSummary, error)
 }
 
 type TaskService struct {
@@ -48,7 +49,11 @@ func (s *TaskService) CreateTask(
 		status = *input.Status
 	}
 
-	if err := validateEnum(status, models.ValidStatuses, "El estado no es válido."); err != nil {
+	if err := validateEnum(
+		status,
+		models.ValidStatuses,
+		"El estado no es válido.",
+	); err != nil {
 		return nil, err
 	}
 
@@ -57,7 +62,11 @@ func (s *TaskService) CreateTask(
 		priority = *input.Priority
 	}
 
-	if err := validateEnum(priority, models.ValidPriorities, "La prioridad no es válida."); err != nil {
+	if err := validateEnum(
+		priority,
+		models.ValidPriorities,
+		"La prioridad no es válida.",
+	); err != nil {
 		return nil, err
 	}
 
@@ -87,7 +96,11 @@ func (s *TaskService) ListTasks(
 	search = strings.TrimSpace(search)
 
 	if status != "" {
-		if err := validateEnum(status, models.ValidStatuses, "El estado no es válido."); err != nil {
+		if err := validateEnum(
+			status,
+			models.ValidStatuses,
+			"El estado no es válido.",
+		); err != nil {
 			return nil, err
 		}
 	}
@@ -123,11 +136,19 @@ func (s *TaskService) UpdateTask(
 		return nil, err
 	}
 
-	if err := validateEnum(input.Status, models.ValidStatuses, "El estado no es válido."); err != nil {
+	if err := validateEnum(
+		input.Status,
+		models.ValidStatuses,
+		"El estado no es válido.",
+	); err != nil {
 		return nil, err
 	}
 
-	if err := validateEnum(input.Priority, models.ValidPriorities, "La prioridad no es válida."); err != nil {
+	if err := validateEnum(
+		input.Priority,
+		models.ValidPriorities,
+		"La prioridad no es válida.",
+	); err != nil {
 		return nil, err
 	}
 
@@ -154,4 +175,10 @@ func (s *TaskService) DeleteTask(
 	id uint64,
 ) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func (s *TaskService) GetSummary(
+	ctx context.Context,
+) (models.TaskSummary, error) {
+	return s.repo.Summary(ctx)
 }
